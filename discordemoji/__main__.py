@@ -6,12 +6,20 @@ from .config import DISCORD_BOT_TOKEN
 
 import os
 import pickle
-from datetime import date, datetime, time, timedelta
-from typing import Generator, Optional
+from datetime import date, datetime, time, timedelta, timezone
+from typing import Generator, Optional, Union, Any
 from pprint import pprint as pp
 
+ONE_DAY = timedelta(days=1)
+TZ_UTC = timezone.utc
 
 class MyClient(discord.Client):
+    cache: "Cache"
+    guild: discord.Guild
+
+    def __init__(self, *, intents: discord.Intents, **options: Any) -> None:
+        super().__init__(intents=intents, **options)
+
     async def on_ready(self):
         print("Logged on as", self.user)
         print(f"Member of {len(self.guilds)} guilds:")
@@ -22,11 +30,12 @@ class MyClient(discord.Client):
             print(f" - {g.name} ({g.id})")
             print(f"   {len(g.text_channels)} text channels")
 
-        guild = self.guilds[0]
+        self.guild = self.guilds[0]
+        self.cache = Cache("cache/", self.guild)
 
         channel = None
         channel_search_name = "beep-boop"
-        for c in guild.text_channels:
+        for c in self.guild.text_channels:
             if c.name.lower() == channel_search_name:
                 channel = c
                 break
@@ -36,10 +45,8 @@ class MyClient(discord.Client):
         else:
             print(f"Using channel {channel} ({channel.id})")
 
-        # self.get_emoji(guild)
-
         # await self.send_emoji_test(channel)
-        await self.get_emoji_results(90, guild)
+        # await self.get_emoji_results(90, self.guild)
 
         # print(f"Printing messages from {guild.name}:")
         # await self.read_history(channel)
@@ -47,12 +54,14 @@ class MyClient(discord.Client):
         # print(f"Counting reactions from {guild.name}:")
         # await self.get_reactions(channel)
 
+        await self.crawl()
+
         print(" === DONE === ")
 
-    def get_emoji(self, guild: discord.Guild):
+    def get_usable_emoji(self, guild: discord.Guild):
         print(f"{len(guild.emojis)}/{guild.emoji_limit} custom emoji")
         for e in guild.emojis:
-            print("Y" if e.is_usable else " ", e.id, e.name)
+            print("Y" if e.is_usable() else " ", e.id, e.name, e.url)
 
     async def send_emoji_test(self, channel: discord.TextChannel):
         msg = ""
@@ -68,27 +77,7 @@ class MyClient(discord.Client):
 
         except StopIteration:
             await channel.send(content=msg, silent=True)
-        msg = " ".join(str(e) for e in channel.guild.emojis if e.is_usable)
-        print("Done.")
-
-    async def get_reactions(self, channel: discord.TextChannel):
-        reaction_count: dict[str, int] = dict()
-        limit = 5000
-        count = 0
-        async for m in channel.history(limit=limit):
-            if count % (limit // 100) == 0:
-                print(".", end="", flush=True)
-            count += 1
-            for r in m.reactions:
-                if type(r.emoji) is str or not r.is_custom_emoji():
-                    continue
-                key = r.emoji.name
-                if key in reaction_count:
-                    reaction_count[key] += r.count
-                else:
-                    reaction_count[key] = r.count
-
-        pp(reaction_count)
+        msg = " ".join(str(e) for e in channel.guild.emojis if e.is_usable())
 
     async def get_emoji_results(self, days: int, guild: discord.Guild):
         today = date.today()
@@ -97,9 +86,10 @@ class MyClient(discord.Client):
         total_reacted = 0
         for i in range(days):
             day = today - timedelta(days=i)
-            results = DayResults.try_cache(day, guild)
+            results = self.cache.get(day)
             if results is None:
                 results = await DayResults.count_emoji(day, guild)
+                self.cache.insert(results)
             total_msgs += results.message_count
             total_reacted += sum(results.emoji_reacted.values())
             total_sent += sum(results.emoji_sent.values())
@@ -109,51 +99,145 @@ class MyClient(discord.Client):
             f"{days} days, {total_msgs} messages, {total_sent} emoji sent, {total_reacted} emoji reacted."
         )
 
-    async def read_history(self, channel: discord.TextChannel):
-        text_limit = 50
-        m: discord.Message
-        async for m in channel.history():
-            output = m.clean_content
-            l_output = len(output)
-            if l_output > text_limit - 3:
-                print(m.id, f": ({l_output})", output[: text_limit - 3] + "...")
-            else:
-                print(m.id, f": ({l_output})", output)
+    async def crawl(self):
+        for day in self.days_to_crawl():
+            results = await DayResults.count_emoji(day, self.guild)
+            self.cache.insert(results)
+
+    def days_to_crawl(self) -> Generator[date, None, None]:
+        # Should be cached up to (inclusive)
+        yesterday = date.today() - timedelta(days=1)
+
+        # Should be cached back to (inclusive)
+        server_created = self.guild.created_at.date()
+
+        cached_days = set(self.cache.cached_days())
+
+        if len(cached_days) > 0:
+            last_cached = max(cached_days)
+            print(f"{len(cached_days)} days already cached - most recent was {last_cached}")
+
+            # First priority is last_cached..yesterday
+            d = last_cached + ONE_DAY
+            while d <= yesterday:
+                yield d
+                d += ONE_DAY
+
+            d = last_cached - ONE_DAY
+        else:
+            d = yesterday
+
+        print(f"Building historical cache backwards from {d}")
+
+        # Next is:
+        #   end of the most-recent continugously cached period
+        # ..the next cached day (excl) OR server creation (incl)
+        while d in cached_days:
+            d -= ONE_DAY
+
+        # d is now the first un-cached day before the contiguous cached period
+        while server_created <= d and d not in cached_days:
+            yield d
+            d -= ONE_DAY
+
+
+class Cache:
+    path: str
+    guild_id: int
+
+    def __init__(self: "Cache", path: str, guild_or_id: Union[discord.Guild, int]) -> None:
+        if not os.path.exists(path):
+            os.makedirs(path, exist_ok=True)
+        self.path = path
+
+        if isinstance(guild_or_id, discord.Guild):
+            self.guild_id = guild_or_id.id
+        elif type(guild_or_id) is int:
+            self.guild_id = guild_or_id
+        else:
+            raise TypeError()
+
+    def insert(self, obj: "DayResults") -> bool:
+        assert obj.guild_id == self.guild_id
+        if obj.day < date.today():  # Today hasn't finished, so don't cache it.
+            try:
+                filename = self.filename_for(obj.day)
+
+                with open(filename, mode="wb") as fd:
+                    pickle.dump(obj, fd)
+
+                print("Cached", filename)
+                return True
+            except Exception as e:
+                print("Failed to cache object:", str(e))
+
+        return False
+
+    def filename_for(self, day: date) -> str:
+        return os.path.join(self.path, f"{self.guild_id}_{day.isoformat()}_DayResults.dat")
+
+    def has(self, day: date) -> bool:
+        return os.path.exists(self.filename_for(day))
+
+    def cached_days(self) -> Generator[date, None, None]:
+        prefix = f"{self.guild_id}_"
+        suffix = "_DayResults.dat"
+
+        gen = (
+            fn[len(prefix) : -len(suffix)]
+            for fn in os.listdir(self.path)
+            if (os.path.isfile(os.path.join(self.path,fn)) and fn.startswith(prefix) and fn.endswith(suffix))
+        )
+
+        for day_str in gen:
+            try:
+                day = date.fromisoformat(day_str)
+                yield day
+            except:
+                print(f"Unexpected date format {day_str}")
+                continue
+
+    def get(self, day: date) -> Optional["DayResults"]:
+        if self.has(day):
+            filename = self.filename_for(day)
+            with open(filename, mode="rb") as fd:
+                obj = pickle.load(fd)
+                if type(obj) is DayResults and obj.day == day and obj.guild_id == self.guild_id:
+                    return obj
+                else:
+                    print(f"Malformed or incompatible unpickled object from {filename}")
+        return None
 
 
 class DayResults:
     day: date
     guild_id: int
+    message_count: int
     emoji_sent: dict[str, int]
     emoji_reacted: dict[str, int]
-    message_count: int
-
-    @staticmethod
-    def try_cache(on_date: date, guild: discord.Guild) -> Optional["DayResults"]:
-        filename = f"cache/{guild.id}_{on_date.isoformat()}_DayResults.dat"
-        if os.path.exists(filename):
-            with open(filename, mode="rb") as fd:
-                obj = pickle.load(fd)
-                if (
-                    type(obj) is DayResults
-                    and obj.day == on_date
-                    and obj.guild_id == guild.id
-                ):
-                    print("Cache hit", filename)
-                    return obj
-        return None
 
     @staticmethod
     async def count_emoji(on_date: date, guild: discord.Guild) -> "DayResults":
+        today_start = datetime.combine(
+            on_date,
+            time(0, 0, 0),
+            tzinfo=TZ_UTC
+        )
+        today_end = datetime.combine(
+            on_date + ONE_DAY,
+            time(0, 0, 0),
+            tzinfo=TZ_UTC
+        )
+
         all_channels = aiostream.stream.merge(
             *[
                 chan.history(
                     limit=5000,
-                    after=datetime.combine(on_date, time(0, 0, 0)),
-                    before=datetime.combine(on_date + timedelta(days=1), time(0, 0, 0)),
+                    after=today_start,
+                    before=today_end,
                 )
                 for chan in guild.text_channels
-                if guild.me in chan.members
+                if guild.me in chan.members and chan.created_at < today_end
             ]
         )
 
@@ -177,23 +261,23 @@ class DayResults:
                     else:
                         results.emoji_reacted[r.emoji.name] = r.count
 
-                for pe in find_custom_emoji(m):
+                for pe in DayResults.find_custom_emoji(m):
                     if pe.name in results.emoji_sent:
                         results.emoji_sent[pe.name] += 1
                     else:
                         results.emoji_sent[pe.name] = 1
             # ... async for m in streamer
 
-        if on_date < date.today():  # Today hasn't finished, so don't cache it.
-            try:
-                filename = f"cache/{guild.id}_{on_date.isoformat()}_DayResults.dat"
-                with open(filename, mode="wb") as fd:
-                    pickle.dump(results, fd)
-                print("Cached", filename)
-            except Exception as e:
-                print("Failed to cache object:", str(e))
-
         return results
+
+    @staticmethod
+    def find_custom_emoji(
+        m: discord.Message,
+    ) -> Generator[discord.PartialEmoji, None, None]:
+        emoji_re = re.compile(r"<:\w+:[0-9]+>")
+
+        for match in emoji_re.finditer(m.content):
+            yield discord.PartialEmoji.from_str(match.group(0))
 
     def __str__(self) -> str:
         return (
@@ -203,16 +287,8 @@ class DayResults:
         )
 
 
-def find_custom_emoji(
-    m: discord.Message,
-) -> Generator[discord.PartialEmoji, None, None]:
-    emoji_re = re.compile(r"<:\w+:[0-9]+>")
-
-    for match in emoji_re.finditer(m.content):
-        yield discord.PartialEmoji.from_str(match.group(0))
-
-
-intents = discord.Intents.default()
-intents.message_content = True
-client = MyClient(intents=intents)
-client.run(DISCORD_BOT_TOKEN)
+if __name__ == "__main__":
+    intents = discord.Intents.default()
+    intents.message_content = True
+    client = MyClient(intents=intents)
+    client.run(DISCORD_BOT_TOKEN)
