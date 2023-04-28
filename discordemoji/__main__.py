@@ -8,7 +8,7 @@ import os
 import pickle
 import datetime as dt
 from time import perf_counter
-from typing import Generator, Optional, Union, Any
+from typing import Generator, Optional, Union, Iterable, Any
 from pprint import pprint as pp
 
 ONE_DAY = dt.timedelta(days=1)
@@ -205,15 +205,20 @@ class Cache:
                 print(f"Unexpected date format {day_str}")
                 continue
 
-    def contiguous_period(self) -> list["DayResults"]:
+    def contiguous_period(self) -> list[dt.date]:
         results = []
 
-        cached_days = sorted(cached_days, reverse=True)
+        cached_days = sorted(self.cached_days(), reverse=True)
 
-        contiguous_len = 0
+        for d in cached_days:
+            if len(results) == 0:
+                results.append(d)
+                continue
+            elif d - results[-1] > ONE_DAY:
+                break
+            else:
+                results.append(d)
         
-        # TODO:
-
         return results
 
     def get(self, day: dt.date) -> Optional["DayResults"]:
@@ -226,6 +231,9 @@ class Cache:
                 else:
                     print(f"Malformed or incompatible unpickled object from {filename}")
         return None
+    
+    def get_all(self, days: Iterable[dt.date]) -> Generator["DayResults", None, None]:
+        return map(self.get, days)
 
 
 class DayResults:
