@@ -31,7 +31,7 @@ class DayResults:
         all_channels = aiostream.stream.merge(
             *[
                 chan.history(
-                    limit=5000,
+                    limit=5000000,
                     after=today_start,
                     before=today_end,
                 )

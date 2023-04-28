@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Discord emoji</title>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <script>
+    const monthColors = [
+      "#002f61",
+      "#004a76",
+      "#006488",
+      "#007c93",
+      "#00939a",
+      "#00aa9b",
+      "#00c096",
+      "#02d588",
+      "#48e772",
+      "#8df359",
+      "#c7fb3a",
+      "#ffff00"
+    ];
+
+    function init() {
+      fetch("/api/messages") 
+        .then(res => res.json())
+        .then(obj => {
+          console.debug(obj);
+          
+          const ctx = document.getElementById("myCanvas");
+
+          new Chart(ctx, {
+            type: 'bar',
+            data: {
+              labels: obj.dates,
+              datasets: [{
+                label: '# messages',
+                data: obj.messages,
+                backgroundColor: function(context, options) {
+                  console.log(obj.dates[context.dataIndex]);
+                  let month = parseInt(obj.dates[context.dataIndex].substring(5,7))
+                  console.log(month);
+                  return monthColors[month-1];
+                }
+              }],
+            },
+          });
+
+        }); // .then()
+    }
+
+    addEventListener("DOMContentLoaded", init);
+  </script>
+</head>
+<body>
+  <canvas id="myCanvas"></canvas>
+</body>
+</html>
