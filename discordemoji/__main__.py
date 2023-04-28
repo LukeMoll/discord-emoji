@@ -6,12 +6,13 @@ from .config import DISCORD_BOT_TOKEN
 
 import os
 import pickle
-from datetime import date, datetime, time, timedelta, timezone
+import datetime as dt
+from time import perf_counter
 from typing import Generator, Optional, Union, Any
 from pprint import pprint as pp
 
-ONE_DAY = timedelta(days=1)
-TZ_UTC = timezone.utc
+ONE_DAY = dt.timedelta(days=1)
+TZ_UTC = dt.timezone.utc
 
 class MyClient(discord.Client):
     cache: "Cache"
@@ -80,12 +81,12 @@ class MyClient(discord.Client):
         msg = " ".join(str(e) for e in channel.guild.emojis if e.is_usable())
 
     async def get_emoji_results(self, days: int, guild: discord.Guild):
-        today = date.today()
+        today = dt.date.today()
         total_msgs = 0
         total_sent = 0
         total_reacted = 0
         for i in range(days):
-            day = today - timedelta(days=i)
+            day = today - dt.timedelta(days=i)
             results = self.cache.get(day)
             if results is None:
                 results = await DayResults.count_emoji(day, guild)
@@ -101,12 +102,15 @@ class MyClient(discord.Client):
 
     async def crawl(self):
         for day in self.days_to_crawl():
+            before_s = perf_counter()
             results = await DayResults.count_emoji(day, self.guild)
+            duration_s = perf_counter() - before_s
             self.cache.insert(results)
+            print(f"Cached {self.cache.filename_for(day)} ({results.message_count:5d} msgs, {duration_s:4.1f}s)")
 
-    def days_to_crawl(self) -> Generator[date, None, None]:
+    def days_to_crawl(self) -> Generator[dt.date, None, None]:
         # Should be cached up to (inclusive)
-        yesterday = date.today() - timedelta(days=1)
+        yesterday = dt.date.today() - dt.timedelta(days=1)
 
         # Should be cached back to (inclusive)
         server_created = self.guild.created_at.date()
@@ -115,7 +119,8 @@ class MyClient(discord.Client):
 
         if len(cached_days) > 0:
             last_cached = max(cached_days)
-            print(f"{len(cached_days)} days already cached - most recent was {last_cached}")
+            progress = len(cached_days) / (yesterday - server_created).days
+            print(f"{len(cached_days)} days already cached ({progress:.0%}) - most recent was {last_cached}")
 
             # First priority is last_cached..yesterday
             d = last_cached + ONE_DAY
@@ -144,6 +149,7 @@ class MyClient(discord.Client):
 class Cache:
     path: str
     guild_id: int
+    last_updated: dt.datetime
 
     def __init__(self: "Cache", path: str, guild_or_id: Union[discord.Guild, int]) -> None:
         if not os.path.exists(path):
@@ -156,30 +162,32 @@ class Cache:
             self.guild_id = guild_or_id
         else:
             raise TypeError()
+        
+        self.last_updated = dt.datetime.now(TZ_UTC)
 
     def insert(self, obj: "DayResults") -> bool:
         assert obj.guild_id == self.guild_id
-        if obj.day < date.today():  # Today hasn't finished, so don't cache it.
+        if obj.day < dt.date.today():  # Today hasn't finished, so don't cache it.
             try:
                 filename = self.filename_for(obj.day)
 
                 with open(filename, mode="wb") as fd:
                     pickle.dump(obj, fd)
 
-                print("Cached", filename)
+                self.last_updated = dt.datetime.now(TZ_UTC)
                 return True
             except Exception as e:
                 print("Failed to cache object:", str(e))
 
         return False
 
-    def filename_for(self, day: date) -> str:
+    def filename_for(self, day: dt.date) -> str:
         return os.path.join(self.path, f"{self.guild_id}_{day.isoformat()}_DayResults.dat")
 
-    def has(self, day: date) -> bool:
+    def has(self, day: dt.date) -> bool:
         return os.path.exists(self.filename_for(day))
 
-    def cached_days(self) -> Generator[date, None, None]:
+    def cached_days(self) -> Generator[dt.date, None, None]:
         prefix = f"{self.guild_id}_"
         suffix = "_DayResults.dat"
 
@@ -191,13 +199,24 @@ class Cache:
 
         for day_str in gen:
             try:
-                day = date.fromisoformat(day_str)
+                day = dt.date.fromisoformat(day_str)
                 yield day
             except:
                 print(f"Unexpected date format {day_str}")
                 continue
 
-    def get(self, day: date) -> Optional["DayResults"]:
+    def contiguous_period(self) -> list["DayResults"]:
+        results = []
+
+        cached_days = sorted(cached_days, reverse=True)
+
+        contiguous_len = 0
+        
+        # TODO:
+
+        return results
+
+    def get(self, day: dt.date) -> Optional["DayResults"]:
         if self.has(day):
             filename = self.filename_for(day)
             with open(filename, mode="rb") as fd:
@@ -210,22 +229,22 @@ class Cache:
 
 
 class DayResults:
-    day: date
+    day: dt.date
     guild_id: int
     message_count: int
     emoji_sent: dict[str, int]
     emoji_reacted: dict[str, int]
 
     @staticmethod
-    async def count_emoji(on_date: date, guild: discord.Guild) -> "DayResults":
-        today_start = datetime.combine(
+    async def count_emoji(on_date: dt.date, guild: discord.Guild) -> "DayResults":
+        today_start = dt.datetime.combine(
             on_date,
-            time(0, 0, 0),
+            dt.time(0, 0, 0),
             tzinfo=TZ_UTC
         )
-        today_end = datetime.combine(
+        today_end = dt.datetime.combine(
             on_date + ONE_DAY,
-            time(0, 0, 0),
+            dt.time(0, 0, 0),
             tzinfo=TZ_UTC
         )
 
