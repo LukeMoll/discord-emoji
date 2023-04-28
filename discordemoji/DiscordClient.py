@@ -1,7 +1,5 @@
 import discord
 
-from .config import DISCORD_BOT_TOKEN
-
 import datetime as dt
 from time import perf_counter
 from typing import Generator, Optional, Any
@@ -144,11 +142,11 @@ class MyClient(discord.Client):
             d -= ONE_DAY
 
 def get_client() -> MyClient:
+    global __client__
     if __client__ is None:
         intents = discord.Intents.default()
         intents.message_content = True
         __client__ = MyClient(intents=intents)
-        __client__.run(DISCORD_BOT_TOKEN)
 
     return __client__
 
