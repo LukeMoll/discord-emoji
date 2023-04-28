@@ -4,11 +4,13 @@ from .config import DISCORD_BOT_TOKEN
 
 import datetime as dt
 from time import perf_counter
-from typing import Generator, Any
+from typing import Generator, Optional, Any
 
 from .Cache import Cache
 from .DayResults import DayResults
 from .utils import *
+
+__client__ : Optional["MyClient"] = None
 
 class MyClient(discord.Client):
     cache: "Cache"
@@ -141,8 +143,13 @@ class MyClient(discord.Client):
             yield d
             d -= ONE_DAY
 
-if __name__ == "__main__":
-    intents = discord.Intents.default()
-    intents.message_content = True
-    client = MyClient(intents=intents)
-    client.run(DISCORD_BOT_TOKEN)
+def get_client() -> MyClient:
+    if __client__ is None:
+        intents = discord.Intents.default()
+        intents.message_content = True
+        __client__ = MyClient(intents=intents)
+        __client__.run(DISCORD_BOT_TOKEN)
+
+    return __client__
+
+
