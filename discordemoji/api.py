@@ -90,7 +90,10 @@ def emojibyweek() -> dict:
     cache = get_client().cache
     data = cast(list[DayResults], list(cache.get_all(cache.contiguous_period())))
 
-    data_byweek = CollatedResults.by_week(data, starts_on=IsoWeekDay.MONDAY)
+    data_byweek = list(CollatedResults.by_week(data, starts_on=IsoWeekDay.MONDAY))
+
+    # data_start_point = dt.date.today() - dt.timedelta(days=365)
+    # data_byweek = list(filter(lambda cr: cr.end_inc >= data_start_point, data_byweek))
 
     dates = list(map(lambda x: x.start_inc.isoformat(), data_byweek))
     all_emoji: set[str] = set()
@@ -108,11 +111,11 @@ def emojibyweek() -> dict:
             sent_emoji[e].append(d.emoji_sent.get(e, 0))
             reacted_emoji[e].append(d.emoji_reacted.get(e, 0))
 
-    assert len(message_count) == len(dates)
-    for v in sent_emoji.values():
-        assert len(v) == len(dates)
-    for v in reacted_emoji.values():
-        assert len(v) == len(dates)
+    assert len(message_count) == len(dates), f"{len(message_count)=}, {len(dates)=}"
+    for k,v in sent_emoji.items():
+        assert len(v) == len(dates), f"{k=}: {len(v)=}, {len(dates)=}"
+    for k,v in reacted_emoji.items():
+        assert len(v) == len(dates), f"{k=}: {len(v)=}, {len(dates)=}"
 
     return {
         "start": dates[0],

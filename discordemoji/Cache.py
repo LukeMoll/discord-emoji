@@ -86,7 +86,7 @@ class Cache:
             else:
                 results.append(d)
 
-        return results
+        return results[::-1]
 
     def get(self, day: dt.date) -> Optional["DayResults"]:
         if self.has(day):

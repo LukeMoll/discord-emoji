@@ -22,10 +22,10 @@ class CollatedResults:
         self.end_inc = start_date + ((self.span_days - 1) * ONE_DAY)
 
         lstDayresults = list(dayresults)
-        assert len(lstDayresults) <= span
+        assert len(lstDayresults) <= span, f"{len(lstDayresults)=}, {span=}"
 
         dates = [dr.day for dr in lstDayresults]
-        assert start_date <= min(dates)
+        assert start_date <= min(dates), f"{start_date=}, {min(dates)=}, {max(dates)=}"
         assert max(dates) <= start_date + (span * ONE_DAY)
 
         if len(lstDayresults) > 0:
@@ -66,9 +66,10 @@ class CollatedResults:
         # Calculate end date of this week from first element -> set weekday to starts_on -> + 7
         # Add to this_week until the next element is greater than the next end_date
         # HOLD next_element and construct the CollatedResults, then move on
-        dayresults_it = iter(dayresults)
+        dayresults_it = iter(sorted(dayresults, key=attrgetter("day")))
         this_week.append(next(dayresults_it))
         end_date_incl = previous_weekday(this_week[0].day, starts_on) + ONE_WEEK
+
 
         for dr in dayresults_it:
             if dr.day > end_date_incl:
@@ -77,7 +78,7 @@ class CollatedResults:
 
                 assert previous_weekday(dr.day, starts_on) == end_date_incl
                 end_date_incl += ONE_WEEK
-
+                
             this_week.append(dr)
 
         if len(this_week) > 0:

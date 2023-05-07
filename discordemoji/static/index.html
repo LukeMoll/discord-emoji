@@ -101,7 +101,7 @@
       for (let emoji of emojiNames) {
         let dataset = {
           label: emoji,
-          data: data.reacted_emoji[emoji]
+          data: data.reacted_emoji[emoji],
         };
         datasets.push(dataset);
       }
@@ -111,6 +111,10 @@
         data: {
           labels: data.dates,
           datasets: datasets
+        },
+        options: {
+          animation: false,
+          spanGaps: true
         }
       });
     }
