@@ -18,7 +18,7 @@ class IsoWeekDay(enum.Enum):
     SUNDAY = 7
 
 
-def previous_weekday(date: dt.date, weekday: Union[IsoWeekDay,int], include_self=True) -> dt.date:
+def previous_weekday(date: dt.date, weekday: Union[IsoWeekDay, int], include_self=True) -> dt.date:
     if include_self:
         return date - ONE_DAY * ((date.isoweekday() - weekday) % 7)
     else:

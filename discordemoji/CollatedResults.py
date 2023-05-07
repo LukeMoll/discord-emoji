@@ -55,7 +55,8 @@ class CollatedResults:
 
     @staticmethod
     def by_week(
-        dayresults: Iterable[DayResults], starts_on: IsoWeekDay) -> Generator["CollatedResults", None, None]:
+        dayresults: Iterable[DayResults], starts_on: IsoWeekDay
+    ) -> Generator["CollatedResults", None, None]:
         # TODO: unit test:
         # first and last CollatedResults should not be empty
 

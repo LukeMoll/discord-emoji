@@ -12,7 +12,9 @@ from .utils import ONE_DAY, IsoWeekDay
 from typing import cast
 
 __app__ = Flask(
-    __name__, static_folder=os.path.join(os.path.dirname(__file__), "static"), static_url_path="/",
+    __name__,
+    static_folder=os.path.join(os.path.dirname(__file__), "static"),
+    static_url_path="/",
 )
 
 
@@ -82,6 +84,7 @@ def emoji() -> dict:
         "reacted_emoji": reacted_emoji,
     }
 
+
 @__app__.route("/api/byweek")
 def emojibyweek() -> dict:
     cache = get_client().cache
@@ -106,7 +109,7 @@ def emojibyweek() -> dict:
             reacted_emoji[e].append(d.emoji_reacted.get(e, 0))
 
     assert len(message_count) == len(dates)
-    for v in sent_emoji.values(): 
+    for v in sent_emoji.values():
         assert len(v) == len(dates)
     for v in reacted_emoji.values():
         assert len(v) == len(dates)
@@ -117,5 +120,5 @@ def emojibyweek() -> dict:
         "dates": dates,
         "message_count": message_count,
         "sent_emoji": sent_emoji,
-        "reacted_emoji": reacted_emoji
+        "reacted_emoji": reacted_emoji,
     }

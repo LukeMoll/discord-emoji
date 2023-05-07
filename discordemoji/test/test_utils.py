@@ -13,8 +13,11 @@ class TestUtils(unittest.TestCase):
             for i in range(7):
                 day = d + (ONE_DAY * i)
                 result = previous_weekday(day, d.isoweekday())
-                self.assertEqual(result, d,
-                                 f"Previous {IsoWeekDay(d.isoweekday()).name} ({d.isoweekday()}) from {day}:\n\texpected {d}\n\tgot {result}")
+                self.assertEqual(
+                    result,
+                    d,
+                    f"Previous {IsoWeekDay(d.isoweekday()).name} ({d.isoweekday()}) from {day}:\n\texpected {d}\n\tgot {result}",
+                )
 
                 self.assertEqual(
                     previous_weekday((d + ONE_WEEK) + (ONE_DAY * (i)), d.isoweekday()), d + ONE_WEEK
