@@ -7,6 +7,8 @@
   <title>Discord emoji</title>
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   <script>
+    addEventListener("DOMContentLoaded", init);
+
     const monthColors = [
       "#002f61",
       "#004a76",
@@ -28,32 +30,65 @@
         .then(obj => {
           console.debug(obj);
           
-          const ctx = document.getElementById("myCanvas");
-
-          new Chart(ctx, {
-            type: 'bar',
-            data: {
-              labels: obj.dates,
-              datasets: [{
-                label: '# messages',
-                data: obj.messages,
-                backgroundColor: function(context, options) {
-                  console.log(obj.dates[context.dataIndex]);
-                  let month = parseInt(obj.dates[context.dataIndex].substring(5,7))
-                  console.log(month);
-                  return monthColors[month-1];
-                }
-              }],
-            },
-          });
+          let ctx = document.getElementById("myCanvas");
+          chartMessageHistory(obj, ctx);
 
         }); // .then()
+
+      fetch("/api/emoji")
+        .then(res => res.json())
+        .then(obj => {
+          let ctx = document.getElementById("emojiPieChart");
+          chartEmojiPieChart(obj, ctx);
+
+        })
     }
 
-    addEventListener("DOMContentLoaded", init);
+    function chartMessageHistory(data, canvas) {
+      new Chart(canvas, {
+        type: 'bar',
+        data: {
+          labels: data.dates,
+          datasets: [{
+            label: '# messages',
+            data: data.messages,
+            backgroundColor: function(context, options) {
+              let month = parseInt(data.dates[context.dataIndex].substring(5,7))
+              return monthColors[month-1];
+            }
+          }],
+        },
+      });
+    }
+
+    function chartEmojiPieChart(data, canvas) {
+      console.debug(data);
+      
+      let emojiNames = Object.keys(data.sent_emoji);
+      console.debug(emojiNames);
+      let sentEmojiCount = [];
+      for (let emoji of emojiNames) {
+        sentEmojiCount.push(data.sent_emoji[emoji].reduce((a,b) => a + b, 0));
+      }
+      // In same order as emojiNames
+
+      new Chart(canvas, {
+        type: 'doughnut',
+        data: {
+          labels: emojiNames,
+          datasets: [{
+            label: `Emoji sent in messages between ${data.start} and ${data.end}`,
+            data: sentEmojiCount
+          }]
+        }
+      });
+    }
+
   </script>
 </head>
 <body>
   <canvas id="myCanvas"></canvas>
+  <canvas id="emojiPieChart"></canvas>
+
 </body>
 </html>
