@@ -6,12 +6,13 @@ from flask import Flask
 from .Cache import Cache
 from .DayResults import DayResults
 from .DiscordClient import MyClient, get_client
-from .utils import ONE_DAY
+from .CollatedResults import CollatedResults
+from .utils import ONE_DAY, IsoWeekDay
 
 from typing import cast
 
 __app__ = Flask(
-    __name__, static_folder=os.path.join(os.path.dirname(__file__), "static"), static_url_path="/"
+    __name__, static_folder=os.path.join(os.path.dirname(__file__), "static"), static_url_path="/",
 )
 
 
@@ -79,4 +80,42 @@ def emoji() -> dict:
         "dates": dates,
         "sent_emoji": sent_emoji,
         "reacted_emoji": reacted_emoji,
+    }
+
+@__app__.route("/api/byweek")
+def emojibyweek() -> dict:
+    cache = get_client().cache
+    data = cast(list[DayResults], list(cache.get_all(cache.contiguous_period())))
+
+    data_byweek = CollatedResults.by_week(data, starts_on=IsoWeekDay.MONDAY)
+
+    dates = list(map(lambda x: x.start_inc.isoformat(), data_byweek))
+    all_emoji: set[str] = set()
+    for d in data_byweek:
+        all_emoji.update(d.emoji_sent.keys())
+        all_emoji.update(d.emoji_reacted.keys())
+
+    message_count: list[int] = []
+    sent_emoji: dict[str, list[int]] = {k: [] for k in all_emoji}
+    reacted_emoji: dict[str, list[int]] = {k: [] for k in all_emoji}
+
+    for d in data_byweek:
+        message_count.append(d.message_count)
+        for e in all_emoji:
+            sent_emoji[e].append(d.emoji_sent.get(e, 0))
+            reacted_emoji[e].append(d.emoji_reacted.get(e, 0))
+
+    assert len(message_count) == len(dates)
+    for v in sent_emoji.values(): 
+        assert len(v) == len(dates)
+    for v in reacted_emoji.values():
+        assert len(v) == len(dates)
+
+    return {
+        "start": dates[0],
+        "end": dates[-1],
+        "dates": dates,
+        "message_count": message_count,
+        "sent_emoji": sent_emoji,
+        "reacted_emoji": reacted_emoji
     }

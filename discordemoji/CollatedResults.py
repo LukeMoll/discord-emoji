@@ -55,15 +55,11 @@ class CollatedResults:
 
     @staticmethod
     def by_week(
-        dayresults: Iterable[DayResults], starts_on: IsoWeekDay, include_self=True
-    ) -> Generator["CollatedResults", None, None]:
+        dayresults: Iterable[DayResults], starts_on: IsoWeekDay) -> Generator["CollatedResults", None, None]:
         # TODO: unit test:
         # first and last CollatedResults should not be empty
 
         this_week: list[DayResults] = []
-
-        if not include_self:
-            raise NotImplementedError()
 
         # start a new Week
         # Calculate end date of this week from first element -> set weekday to starts_on -> + 7

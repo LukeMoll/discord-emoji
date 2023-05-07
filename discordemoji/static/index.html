@@ -41,6 +41,13 @@
           let ctx = document.getElementById("emojiPieChart");
           chartEmojiPieChart(obj, ctx);
 
+        });
+      
+      fetch("/api/byweek")
+        .then(res => res.json())
+        .then(obj => {
+          let ctx = document.getElementById("emojiLineChart");
+          chartEmojiByWeek(obj, ctx);
         })
     }
 
@@ -84,10 +91,34 @@
       });
     }
 
+
+    function chartEmojiByWeek(data, canvas) {
+      console.debug(data);
+
+      let emojiNames = Object.keys(data.sent_emoji);
+
+      let datasets = [];
+      for (let emoji of emojiNames) {
+        let dataset = {
+          label: emoji,
+          data: data.reacted_emoji[emoji]
+        };
+        datasets.push(dataset);
+      }
+
+      new Chart(canvas, {
+        type: 'line',
+        data: {
+          labels: data.dates,
+          datasets: datasets
+        }
+      });
+    }
   </script>
 </head>
 <body>
   <canvas id="myCanvas"></canvas>
+  <canvas id="emojiLineChart"></canvas>
   <canvas id="emojiPieChart"></canvas>
 
 </body>
