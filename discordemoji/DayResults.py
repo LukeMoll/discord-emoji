@@ -1,9 +1,9 @@
 import datetime as dt
 import discord
-import aiostream.stream # type: ignore
+import aiostream.stream  # type: ignore
 import re
 
-from typing import Generator
+from typing import Generator, Iterable
 
 from .utils import *
 
@@ -20,12 +20,12 @@ class DayResults:
         today_start = dt.datetime.combine(
             on_date,
             dt.time(0, 0, 0),
-            tzinfo=TZ_UTC
+            tzinfo=TZ_UTC,
         )
         today_end = dt.datetime.combine(
             on_date + ONE_DAY,
             dt.time(0, 0, 0),
-            tzinfo=TZ_UTC
+            tzinfo=TZ_UTC,
         )
 
         all_channels = aiostream.stream.merge(

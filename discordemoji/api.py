@@ -11,18 +11,19 @@ from .utils import ONE_DAY
 from typing import cast
 
 __app__ = Flask(
-    __name__,
-    static_folder=os.path.join(os.path.dirname(__file__),"static"),
-    static_url_path="/"
+    __name__, static_folder=os.path.join(os.path.dirname(__file__), "static"), static_url_path="/"
 )
+
 
 def get_app() -> Flask:
     return __app__
+
 
 @__app__.route("/api/")
 def index() -> str:
     client = get_client()
     return f"{len(client.cache.contiguous_period())} days cached!"
+
 
 @__app__.route("/api/cache")
 def cache() -> dict:
@@ -34,8 +35,9 @@ def cache() -> dict:
     return {
         "cached_days_count": total_days,
         "contiguous_days_count": contig_days,
-        "days_since_created": all_days
+        "days_since_created": all_days,
     }
+
 
 @__app__.route("/api/messages")
 def users() -> dict:
@@ -46,10 +48,11 @@ def users() -> dict:
         "start": data[0].day.isoformat(),
         "end": data[-1].day.isoformat(),
         "dates": list(map(lambda x: x.day.isoformat(), data)),
-        "messages": list(map(lambda x: x.message_count , data))
+        "messages": list(map(lambda x: x.message_count, data)),
     }
 
     return result
+
 
 @__app__.route("/api/emoji")
 def emoji() -> dict:
@@ -57,13 +60,13 @@ def emoji() -> dict:
     data = cast(list[DayResults], list(cache.get_all(cache.contiguous_period())))
 
     dates = list(map(lambda x: x.day.isoformat(), data))
-    all_emoji : set[str] = set()
+    all_emoji: set[str] = set()
     for d in data:
         all_emoji.update(d.emoji_sent.keys())
         all_emoji.update(d.emoji_reacted.keys())
 
-    sent_emoji : dict[str, list[int]] = {k:[] for k in all_emoji}
-    reacted_emoji : dict[str, list[int]] = {k:[] for k in all_emoji}
+    sent_emoji: dict[str, list[int]] = {k: [] for k in all_emoji}
+    reacted_emoji: dict[str, list[int]] = {k: [] for k in all_emoji}
 
     for d in data:
         for e in all_emoji:
@@ -75,5 +78,5 @@ def emoji() -> dict:
         "end": data[-1].day.isoformat(),
         "dates": dates,
         "sent_emoji": sent_emoji,
-        "reacted_emoji": reacted_emoji
+        "reacted_emoji": reacted_emoji,
     }

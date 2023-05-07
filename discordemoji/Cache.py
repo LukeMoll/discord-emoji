@@ -8,6 +8,7 @@ from typing import Union, Generator, Optional, Iterable
 from .DayResults import DayResults
 from .utils import *
 
+
 class Cache:
     path: str
     guild_id: int
@@ -24,7 +25,7 @@ class Cache:
             self.guild_id = guild_or_id
         else:
             raise TypeError()
-        
+
         self.last_updated = dt.datetime.now(TZ_UTC)
 
     def insert(self, obj: "DayResults") -> bool:
@@ -56,7 +57,11 @@ class Cache:
         gen = (
             fn[len(prefix) : -len(suffix)]
             for fn in os.listdir(self.path)
-            if (os.path.isfile(os.path.join(self.path,fn)) and fn.startswith(prefix) and fn.endswith(suffix))
+            if (
+                os.path.isfile(os.path.join(self.path, fn))
+                and fn.startswith(prefix)
+                and fn.endswith(suffix)
+            )
         )
 
         for day_str in gen:
@@ -68,7 +73,7 @@ class Cache:
                 continue
 
     def contiguous_period(self) -> list[dt.date]:
-        results : list[dt.date] = []
+        results: list[dt.date] = []
 
         cached_days = sorted(self.cached_days(), reverse=True)
 
@@ -80,7 +85,7 @@ class Cache:
                 break
             else:
                 results.append(d)
-        
+
         return results
 
     def get(self, day: dt.date) -> Optional["DayResults"]:
@@ -93,6 +98,6 @@ class Cache:
                 else:
                     print(f"Malformed or incompatible unpickled object from {filename}")
         return None
-    
+
     def get_all(self, days: Iterable[dt.date]) -> Iterable[Optional["DayResults"]]:
         return map(self.get, days)

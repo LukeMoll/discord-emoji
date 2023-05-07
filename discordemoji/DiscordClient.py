@@ -8,7 +8,8 @@ from .Cache import Cache
 from .DayResults import DayResults
 from .utils import *
 
-__client__ : Optional["MyClient"] = None
+__client__: Optional["MyClient"] = None
+
 
 class MyClient(discord.Client):
     cache: "Cache"
@@ -102,7 +103,9 @@ class MyClient(discord.Client):
             results = await DayResults.count_emoji(day, self.guild)
             duration_s = perf_counter() - before_s
             self.cache.insert(results)
-            print(f"Cached {self.cache.filename_for(day)} ({results.message_count:5d} msgs, {duration_s:4.1f}s)")
+            print(
+                f"Cached {self.cache.filename_for(day)} ({results.message_count:5d} msgs, {duration_s:4.1f}s)"
+            )
 
     def days_to_crawl(self) -> Generator[dt.date, None, None]:
         # Should be cached up to (inclusive)
@@ -116,7 +119,9 @@ class MyClient(discord.Client):
         if len(cached_days) > 0:
             last_cached = max(cached_days)
             progress = len(cached_days) / (yesterday - server_created).days
-            print(f"{len(cached_days)} days already cached ({progress:.0%}) - most recent was {last_cached}")
+            print(
+                f"{len(cached_days)} days already cached ({progress:.0%}) - most recent was {last_cached}"
+            )
 
             # First priority is last_cached..yesterday
             d = last_cached + ONE_DAY
@@ -141,6 +146,7 @@ class MyClient(discord.Client):
             yield d
             d -= ONE_DAY
 
+
 def get_client() -> MyClient:
     global __client__
     if __client__ is None:
@@ -149,5 +155,3 @@ def get_client() -> MyClient:
         __client__ = MyClient(intents=intents)
 
     return __client__
-
-
