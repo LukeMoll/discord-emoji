@@ -112,9 +112,9 @@ def emojibyweek() -> dict:
             reacted_emoji[e].append(d.emoji_reacted.get(e, 0))
 
     assert len(message_count) == len(dates), f"{len(message_count)=}, {len(dates)=}"
-    for k,v in sent_emoji.items():
+    for k, v in sent_emoji.items():
         assert len(v) == len(dates), f"{k=}: {len(v)=}, {len(dates)=}"
-    for k,v in reacted_emoji.items():
+    for k, v in reacted_emoji.items():
         assert len(v) == len(dates), f"{k=}: {len(v)=}, {len(dates)=}"
 
     return {

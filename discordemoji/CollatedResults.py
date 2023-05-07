@@ -70,7 +70,6 @@ class CollatedResults:
         this_week.append(next(dayresults_it))
         end_date_incl = previous_weekday(this_week[0].day, starts_on) + ONE_WEEK
 
-
         for dr in dayresults_it:
             if dr.day > end_date_incl:
                 yield CollatedResults(7, end_date_incl - ONE_WEEK, this_week)
@@ -78,7 +77,7 @@ class CollatedResults:
 
                 assert previous_weekday(dr.day, starts_on) == end_date_incl
                 end_date_incl += ONE_WEEK
-                
+
             this_week.append(dr)
 
         if len(this_week) > 0:
