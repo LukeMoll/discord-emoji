@@ -18,7 +18,19 @@ class IsoWeekDay(enum.Enum):
     SUNDAY = 7
 
 
-def previous_weekday(date: dt.date, weekday: Union[IsoWeekDay, int], include_self=True) -> dt.date:
+def previous_weekday(
+    date: dt.date,
+    argWeekday: Union[IsoWeekDay, int],
+    include_self=True,
+) -> dt.date:
+    weekday: int
+    if type(argWeekday) is IsoWeekDay:
+        weekday = argWeekday.value
+    elif type(argWeekday) is int:
+        weekday = argWeekday
+    else:
+        raise TypeError(f"Invalid type: {type(argWeekday)=}")
+
     if include_self:
         return date - ONE_DAY * ((date.isoweekday() - weekday) % 7)
     else:
