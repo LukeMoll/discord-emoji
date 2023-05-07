@@ -60,7 +60,7 @@ class CollatedResults:
         # TODO: unit test:
         # first and last CollatedResults should not be empty
 
-        this_week: list[dayresults] = []
+        this_week: list[DayResults] = []
 
         if not include_self:
             raise NotImplementedError()
@@ -69,11 +69,11 @@ class CollatedResults:
         # Calculate end date of this week from first element -> set weekday to starts_on -> + 7
         # Add to this_week until the next element is greater than the next end_date
         # HOLD next_element and construct the CollatedResults, then move on
+        dayresults_it = iter(dayresults)
+        this_week.append(next(dayresults_it))
+        end_date_incl = previous_weekday(this_week[0].day, starts_on) + ONE_WEEK
 
-        this_week.append(next(dayresults))
-        end_date_incl = previous_weekday(this_week[0], starts_on) + ONE_WEEK
-
-        for dr in dayresults:
+        for dr in dayresults_it:
             if dr.day > end_date_incl:
                 yield CollatedResults(7, end_date_incl - ONE_WEEK, this_week)
                 this_week.clear()
@@ -81,7 +81,7 @@ class CollatedResults:
                 assert previous_weekday(dr.day, starts_on) == end_date_incl
                 end_date_incl += ONE_WEEK
 
-            this_week.append(dr.day)
+            this_week.append(dr)
 
         if len(this_week) > 0:
             yield CollatedResults(7, end_date_incl - ONE_WEEK, this_week)
