@@ -35,3 +35,9 @@ def previous_weekday(
         return date - ONE_DAY * ((date.isoweekday() - weekday) % 7)
     else:
         raise NotImplementedError()
+
+def skip_middle(s : str, shown : int) -> str:
+    if len(s) <= shown * 2:
+        return s
+    else:
+        return s[:shown] + "..." + s[-shown:]
